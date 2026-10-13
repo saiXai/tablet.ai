@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { extractMedicationsFromImage } from '@/services/geminiExtraction';
+import { extractMedicationsWithOpenAI } from '@/services/openAIExtraction';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,10 +15,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Strip data URL header if present (e.g. data:image/jpeg;base64,...)
     const cleanBase64 = image_base64.replace(/^data:image\/[a-z]+;base64,/, '');
 
-    const extractionResult = await extractMedicationsFromImage(
+    // Invoke OpenAI Vision Extraction Engine
+    const extractionResult = await extractMedicationsWithOpenAI(
       cleanBase64,
       mime_type || 'image/jpeg'
     );
