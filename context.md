@@ -104,12 +104,14 @@ tablet.ai/
 | Feature | Status | Notes |
 | :--- | :--- | :--- |
 | **Next.js 14 Foundation** | ✅ Complete | Verified clean production build (`npm run build`) |
-| **PostgreSQL 16 Schema** | ✅ Complete | Written to `database/schema.sql` with fallback memory store |
+| **Supabase Cloud PostgreSQL** | ✅ Connected & Migrated | Project `Tablet.ai` (`tiskgqqlgobwiyyifqkv`) with live schemas & triggers |
+| **OAuth 2.0 & Supabase Auth** | ✅ Configured | Google, Apple, Facebook, Email Magic Link + `/auth/callback` code exchange |
+| **Multi-Profile Seed Users** | ✅ Provisioned | `saiphaneendra09@gmail.com` & `saiphanimba09@gmail.com` with active schedules |
 | **OpenAI Vision Engine** | ✅ Complete | Uses `gpt-4o-mini` with strict clinical prompt and test fallback |
 | **Gemini Vision Engine** | ✅ Complete | Uses `@google/genai` specification |
-| **Interactive Agenda UI** | ✅ Complete | 1-tap check-off, confetti, sticky 6-second undo toast |
+| **Interactive Agenda UI** | ✅ Complete | 1-tap check-off, confetti, sticky 6-second undo toast, 1-click user switcher |
 | **Bill Scan & Review Modal** | ✅ Complete | Side-by-side editing, slot toggles, duration chips (7/10/14/21d) |
-| **Telegram Bot Integration**| ✅ Complete | Deep linking (`/start <token>`) & inline action callbacks |
+| **Telegram Reminder Bot** | ✅ Upgraded | Deep linking (`/start <token>`), `/today`, `/notify` dispatcher & inline buttons |
 | **Git Repository** | ✅ Synchronized | Live on GitHub at `https://github.com/saiXai/tablet.ai` (`main`) |
 | **Local Dev Server** | ✅ Running | Active at `http://localhost:3000` (HTTP 200 OK) |
 
@@ -118,19 +120,21 @@ tablet.ai/
 ## 6. Environment Configuration Variables
 
 * `NEXT_PUBLIC_APP_URL`: Base application URL (default: `http://localhost:3000`).
+* `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL (`https://tiskgqqlgobwiyyifqkv.supabase.co`).
+* `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase anon/public API key.
 * `OPENAI_API_KEY`: API key for GPT-4o-mini receipt extraction.
 * `OPENAI_VISION_MODEL`: Model identifier (default: `gpt-4o-mini`).
 * `GEMINI_API_KEY`: Optional Gemini API key.
-* `DATABASE_URL`: PostgreSQL connection string (Supabase or local).
+* `DATABASE_URL`: PostgreSQL connection string (Supabase direct or pooled URI).
 * `REDIS_URL`: Redis endpoint for BullMQ delayed reminder workers.
 * `TELEGRAM_BOT_TOKEN`: Bot token from `@BotFather`.
 * `TELEGRAM_BOT_USERNAME`: Default `TabletAiReminderBot`.
+* `TELEGRAM_WEBHOOK_SECRET`: Optional secret for Telegram webhook security.
 
 ---
 
 ## 7. Upcoming Milestones & Roadmap
 
-1. **Live Database Integration:** Connect remote PostgreSQL (e.g. Supabase) and run schema migrations.
-2. **Background Reminder Worker:** Set up Redis 7 + BullMQ worker to dispatch real delayed Telegram and Web Push notifications 10 minutes prior to dose slots.
-3. **PWA & Offline Support:** Add `manifest.json` and service worker for mobile home-screen installability.
-4. **Refill Tracking:** Add alerts when remaining pills drop below a 3-day threshold.
+1. **Background Reminder Worker:** Set up Redis 7 + BullMQ worker to dispatch real delayed Telegram and Web Push notifications 10 minutes prior to dose slots.
+2. **PWA & Offline Support:** Add `manifest.json` and service worker for mobile home-screen installability.
+3. **Refill Tracking:** Add alerts when remaining pills drop below a 3-day threshold.

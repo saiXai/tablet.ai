@@ -8,43 +8,65 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres'))
   try {
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
+      ssl: process.env.DATABASE_SSL === 'true' || process.env.DATABASE_URL.includes('supabase') 
+        ? { rejectUnauthorized: false } 
+        : undefined,
     });
   } catch (err) {
     console.warn('PostgreSQL pool init failed, falling back to local memory store:', err);
   }
 }
 
-// In-Memory Fallback Store (Allows instant zero-config prototyping & development)
+// In-Memory Fallback Store (Pre-seeded with both users)
+const SEED_USER_1: User = {
+  id: '11111111-1111-1111-1111-111111111111',
+  email: 'saiphaneendra09@gmail.com',
+  name: 'Sai Phaneendra',
+  timezone: 'Asia/Kolkata',
+  lead_time_minutes: 10,
+  meal_slot_preferences: {
+    morning: '08:30',
+    afternoon: '13:30',
+    evening: '20:30',
+    bedtime: '22:30',
+  },
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
+const SEED_USER_2: User = {
+  id: '22222222-2222-2222-2222-222222222222',
+  email: 'saiphanimba09@gmail.com',
+  name: 'Sai Phanimba',
+  timezone: 'Asia/Kolkata',
+  lead_time_minutes: 10,
+  meal_slot_preferences: {
+    morning: '08:30',
+    afternoon: '13:30',
+    evening: '20:30',
+    bedtime: '22:30',
+  },
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
+
 const memoryStore = {
-  user: {
-    id: '00000000-0000-0000-0000-000000000001',
-    email: 'demo@tablet.ai',
-    name: 'Alex Morgan',
-    timezone: 'Asia/Kolkata',
-    lead_time_minutes: 10,
-    meal_slot_preferences: {
-      morning: '08:30',
-      afternoon: '13:30',
-      evening: '20:30',
-      bedtime: '22:30',
-    },
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  } as User,
+  users: [SEED_USER_1, SEED_USER_2] as User[],
+  activeUserId: SEED_USER_1.id,
   schedules: [] as MedicationSchedule[],
   tasks: [] as AdherenceTask[],
 };
 
-// Seed initial sample medication for instant demo experience if empty
+// Seed initial sample medication for both users if empty
 function ensureSeedData() {
   if (memoryStore.schedules.length === 0) {
     const today = new Date().toISOString().split('T')[0];
-    const schedId = 'sched-demo-amox-01';
-    
+
+    // Schedules for User 1
+    const s1Id = 'sched-amox-sai-1';
     memoryStore.schedules.push({
-      id: schedId,
-      user_id: memoryStore.user.id,
+      id: s1Id,
+      user_id: SEED_USER_1.id,
       medicine_name: 'Amoxicillin',
       strength: '500mg',
       dosage_instruction: '1 capsule',
@@ -59,46 +81,168 @@ function ensureSeedData() {
       updated_at: new Date().toISOString(),
     });
 
-    // Generate tasks for today and tomorrow
-    const times = [
-      { time: '08:30', slot: 'MORNING' as const, status: 'COMPLETED' as const },
-      { time: '20:30', slot: 'EVENING' as const, status: 'PENDING' as const },
-    ];
-
-    times.forEach((t, idx) => {
-      memoryStore.tasks.push({
-        id: `task-demo-${idx + 1}`,
-        schedule_id: schedId,
-        user_id: memoryStore.user.id,
-        scheduled_for: `${today}T${t.time}:00.000Z`,
-        status: t.status,
-        completed_at: t.status === 'COMPLETED' ? new Date().toISOString() : null,
-        channel_source: t.status === 'COMPLETED' ? 'APP_UI' : null,
+    memoryStore.tasks.push(
+      {
+        id: `task-u1-1`,
+        schedule_id: s1Id,
+        user_id: SEED_USER_1.id,
+        scheduled_for: `${today}T08:30:00.000Z`,
+        status: 'COMPLETED',
+        completed_at: new Date().toISOString(),
+        channel_source: 'APP_UI',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         medicine_name: 'Amoxicillin',
         strength: '500mg',
         dosage_instruction: '1 capsule',
         meal_relation: 'AFTER_FOOD',
-        suggested_slots: [t.slot],
-      });
+        suggested_slots: ['MORNING'],
+      },
+      {
+        id: `task-u1-2`,
+        schedule_id: s1Id,
+        user_id: SEED_USER_1.id,
+        scheduled_for: `${today}T20:30:00.000Z`,
+        status: 'PENDING',
+        completed_at: null,
+        channel_source: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        medicine_name: 'Amoxicillin',
+        strength: '500mg',
+        dosage_instruction: '1 capsule',
+        meal_relation: 'AFTER_FOOD',
+        suggested_slots: ['EVENING'],
+      }
+    );
+
+    // Schedules for User 2
+    const s2Id = 'sched-metform-sai-2';
+    memoryStore.schedules.push({
+      id: s2Id,
+      user_id: SEED_USER_2.id,
+      medicine_name: 'Metformin',
+      strength: '500mg',
+      dosage_instruction: '1 tablet',
+      meal_relation: 'WITH_FOOD',
+      daily_times: ['08:30', '20:30'],
+      suggested_slots: ['MORNING', 'EVENING'],
+      start_date: today,
+      end_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+      duration_days: 30,
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     });
+
+    memoryStore.tasks.push(
+      {
+        id: `task-u2-1`,
+        schedule_id: s2Id,
+        user_id: SEED_USER_2.id,
+        scheduled_for: `${today}T08:30:00.000Z`,
+        status: 'COMPLETED',
+        completed_at: new Date().toISOString(),
+        channel_source: 'TELEGRAM',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        medicine_name: 'Metformin',
+        strength: '500mg',
+        dosage_instruction: '1 tablet',
+        meal_relation: 'WITH_FOOD',
+        suggested_slots: ['MORNING'],
+      },
+      {
+        id: `task-u2-2`,
+        schedule_id: s2Id,
+        user_id: SEED_USER_2.id,
+        scheduled_for: `${today}T20:30:00.000Z`,
+        status: 'PENDING',
+        completed_at: null,
+        channel_source: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        medicine_name: 'Metformin',
+        strength: '500mg',
+        dosage_instruction: '1 tablet',
+        meal_relation: 'WITH_FOOD',
+        suggested_slots: ['EVENING'],
+      }
+    );
   }
 }
 
 ensureSeedData();
 
 export const db = {
-  async getUser(id: string = memoryStore.user.id): Promise<User> {
+  async getUser(id?: string): Promise<User> {
+    const targetId = id || memoryStore.activeUserId;
     if (pool) {
       try {
-        const res = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+        const res = await pool.query('SELECT * FROM users WHERE id = $1', [targetId]);
         if (res.rows[0]) return res.rows[0];
       } catch (e) {
         console.warn('DB query failed, using memory store fallback:', e);
       }
     }
-    return memoryStore.user;
+    const found = memoryStore.users.find((u) => u.id === targetId);
+    return found || memoryStore.users[0];
+  },
+
+  async getUserByEmail(email: string): Promise<User | null> {
+    if (pool) {
+      try {
+        const res = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+        if (res.rows[0]) return res.rows[0];
+      } catch (e) {
+        console.warn('DB query failed:', e);
+      }
+    }
+    return memoryStore.users.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
+  },
+
+  async getUserByTelegramToken(token: string): Promise<User | null> {
+    if (pool) {
+      try {
+        const res = await pool.query('SELECT * FROM users WHERE telegram_auth_token = $1', [token]);
+        if (res.rows[0]) return res.rows[0];
+      } catch (e) {
+        console.warn('DB query failed:', e);
+      }
+    }
+    return memoryStore.users.find((u) => u.telegram_auth_token === token) || null;
+  },
+
+  async getUserByTelegramChatId(chatId: number): Promise<User | null> {
+    if (pool) {
+      try {
+        const res = await pool.query('SELECT * FROM users WHERE telegram_chat_id = $1', [chatId]);
+        if (res.rows[0]) return res.rows[0];
+      } catch (e) {
+        console.warn('DB query failed:', e);
+      }
+    }
+    return memoryStore.users.find((u) => u.telegram_chat_id === chatId) || null;
+  },
+
+  async setActiveUser(idOrEmail: string): Promise<User> {
+    const user = (await this.getUserByEmail(idOrEmail)) || (await this.getUser(idOrEmail));
+    if (user) {
+      memoryStore.activeUserId = user.id;
+    }
+    return user || memoryStore.users[0];
+  },
+
+  async listUsers(): Promise<User[]> {
+    if (pool) {
+      try {
+        const res = await pool.query('SELECT * FROM users ORDER BY created_at ASC');
+        if (res.rows.length > 0) return res.rows;
+      } catch (e) {
+        console.warn('DB query failed:', e);
+      }
+    }
+    return memoryStore.users;
   },
 
   async updateUserTelegram(userId: string, chatId: number | null, token: string | null): Promise<void> {
@@ -113,8 +257,12 @@ export const db = {
         console.warn('DB update failed, using memory fallback:', e);
       }
     }
-    memoryStore.user.telegram_chat_id = chatId;
-    memoryStore.user.telegram_auth_token = token;
+    const user = memoryStore.users.find((u) => u.id === userId);
+    if (user) {
+      user.telegram_chat_id = chatId;
+      user.telegram_auth_token = token;
+      user.updated_at = new Date().toISOString();
+    }
   },
 
   async createSchedule(sched: Omit<MedicationSchedule, 'id' | 'created_at' | 'updated_at'>): Promise<MedicationSchedule> {
@@ -170,7 +318,6 @@ export const db = {
 
     if (pool) {
       try {
-        // Bulk insert in Postgres
         for (const t of created) {
           await pool.query(
             `INSERT INTO adherence_tasks (id, schedule_id, user_id, scheduled_for, status)
@@ -237,7 +384,6 @@ export const db = {
   },
 
   async getDailySummary(userId: string, dateStr: string): Promise<DailySummary> {
-    // Filter tasks for this user & day
     let userTasks: AdherenceTask[] = [];
 
     if (pool) {
@@ -266,9 +412,7 @@ export const db = {
     const totalScheduled = userTasks.length;
     const completedCount = userTasks.filter((t) => t.status === 'COMPLETED').length;
     const completionRate = totalScheduled > 0 ? completedCount / totalScheduled : 0;
-
-    // Calculate streak
-    const currentStreakDays = 5; // Calculated or seeded for MVP
+    const currentStreakDays = 5;
 
     return {
       date: dateStr,
@@ -293,5 +437,63 @@ export const db = {
       }
     }
     return memoryStore.schedules.filter((s) => s.user_id === userId && s.is_active);
+  },
+
+  async getPendingTasksForTelegramReminder(): Promise<Array<{ task: AdherenceTask; user: User }>> {
+    const results: Array<{ task: AdherenceTask; user: User }> = [];
+    if (pool) {
+      try {
+        const res = await pool.query(
+          `SELECT t.*, s.medicine_name, s.strength, s.dosage_instruction, s.meal_relation,
+                  u.id as user_id, u.email as user_email, u.name as user_name, u.telegram_chat_id
+           FROM adherence_tasks t
+           JOIN medication_schedules s ON t.schedule_id = s.id
+           JOIN users u ON t.user_id = u.id
+           WHERE t.status = 'PENDING'
+             AND u.telegram_chat_id IS NOT NULL
+             AND t.scheduled_for >= NOW() - INTERVAL '1 hour'
+             AND t.scheduled_for <= NOW() + INTERVAL '30 minutes'`
+        );
+        return res.rows.map((r) => ({
+          task: {
+            id: r.id,
+            schedule_id: r.schedule_id,
+            user_id: r.user_id,
+            scheduled_for: r.scheduled_for,
+            status: r.status,
+            medicine_name: r.medicine_name,
+            strength: r.strength,
+            dosage_instruction: r.dosage_instruction,
+            meal_relation: r.meal_relation,
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+          },
+          user: {
+            id: r.user_id,
+            email: r.user_email,
+            name: r.user_name,
+            telegram_chat_id: r.telegram_chat_id,
+            timezone: 'Asia/Kolkata',
+            lead_time_minutes: 10,
+            meal_slot_preferences: { morning: '08:30', afternoon: '13:30', evening: '20:30', bedtime: '22:30' },
+            created_at: '',
+            updated_at: '',
+          },
+        }));
+      } catch (e) {
+        console.warn('DB query reminders failed:', e);
+      }
+    }
+
+    // Memory store fallback
+    for (const t of memoryStore.tasks) {
+      if (t.status === 'PENDING') {
+        const u = memoryStore.users.find((user) => user.id === t.user_id && user.telegram_chat_id);
+        if (u) {
+          results.push({ task: t, user: u });
+        }
+      }
+    }
+    return results;
   },
 };

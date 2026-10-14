@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, MessageSquare, ExternalLink, CheckCircle2, Copy, Check } from 'lucide-react';
+import { X, MessageSquare, ExternalLink, CheckCircle2, Copy, Check, BellRing, Loader2 } from 'lucide-react';
 
 interface TelegramConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
   isConnected: boolean;
   onConnectedStatusChange: (status: boolean) => void;
+  userEmail?: string;
 }
 
 export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({
@@ -15,13 +16,16 @@ export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({
   onClose,
   isConnected,
   onConnectedStatusChange,
+  userEmail,
 }) => {
   const [token, setToken] = useState<string>('');
   const [deepLink, setDeepLink] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testStatus, setTestStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen && !isConnected) {
+    if (isOpen) {
       fetch('/api/v1/telegram/connect', { method: 'POST' })
         .then((res) => res.json())
         .then((data) => {
@@ -31,7 +35,7 @@ export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({
         })
         .catch(console.error);
     }
-  }, [isOpen, isConnected, onConnectedStatusChange]);
+  }, [isOpen, onConnectedStatusChange]);
 
   if (!isOpen) return null;
 
@@ -42,8 +46,29 @@ export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({
   };
 
   const handleSimulateConnection = () => {
-    // For local prototype demonstration if no live telegram bot token configured yet
     onConnectedStatusChange(true);
+  };
+
+  const handleSendTestNotification = async () => {
+    try {
+      setIsSendingTest(true);
+      setTestStatus(null);
+      const res = await fetch('/api/v1/telegram/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTestStatus(`Dispatched ${data.reminders_dispatched || 1} reminder notification!`);
+      } else {
+        setTestStatus(data.error || 'Failed to dispatch test notification');
+      }
+    } catch {
+      setTestStatus('Notification trigger error');
+    } finally {
+      setIsSendingTest(false);
+    }
   };
 
   return (
@@ -57,7 +82,9 @@ export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-base text-slate-900">Telegram Nudge Bot</h3>
-              <p className="text-xs text-slate-500">Dual-channel reminder delivery</p>
+              <p className="text-xs text-slate-500">
+                {userEmail ? `Configuring for ${userEmail}` : 'Dual-channel reminder delivery'}
+              </p>
             </div>
           </div>
           <button
@@ -71,9 +98,9 @@ export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({
         {/* Body */}
         <div className="p-6 space-y-5">
           {isConnected ? (
-            <div className="text-center py-4 space-y-3">
-              <div className="w-14 h-14 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-8 h-8 text-blue-600" />
+            <div className="text-center py-2 space-y-3">
+              <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
               </div>
               <h4 className="text-base font-bold text-slate-900">
                 Connected to @TabletAiReminderBot
@@ -81,10 +108,33 @@ export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
                 Your notifications are active. You will receive nudges 10 minutes prior to every dose with single-tap checkoff buttons.
               </p>
+
+              {/* Test Notification Trigger */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleSendTestNotification}
+                  disabled={isSendingTest}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm shadow-blue-200 transition-colors disabled:opacity-50"
+                >
+                  {isSendingTest ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <BellRing className="w-3.5 h-3.5" />
+                  )}
+                  <span>Send Test Dose Reminder Now</span>
+                </button>
+                {testStatus && (
+                  <p className="text-[11px] text-slate-600 mt-2 font-medium bg-slate-50 p-2 rounded-lg border border-slate-200">
+                    {testStatus}
+                  </p>
+                )}
+              </div>
+
               <div className="pt-2">
                 <button
                   onClick={() => onConnectedStatusChange(false)}
-                  className="text-xs text-red-500 hover:underline font-semibold"
+                  className="text-xs text-rose-500 hover:underline font-semibold"
                 >
                   Disconnect Telegram
                 </button>
@@ -97,7 +147,7 @@ export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({
                   Receive Timely Alerts in Telegram
                 </h4>
                 <p className="text-xs text-slate-500">
-                  Connect your personal Telegram account to receive gentle nudges with interactive <b>[ ✅ Taken ]</b> and <b>[ ⏱️ Snooze 15m ]</b> buttons.
+                  Connect your personal Telegram account to receive gentle nudges with interactive <b>[ ✅ Taken ]</b>, <b>[ ⏱️ Snooze 15m ]</b>, and <b>[ ❌ Skip ]</b> buttons.
                 </p>
               </div>
 

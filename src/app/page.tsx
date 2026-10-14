@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from '@/components/Header';
 import { DashboardProgress } from '@/components/DashboardProgress';
 import { AdherenceAgenda } from '@/components/AdherenceAgenda';
 import { BillScanModal } from '@/components/BillScanModal';
 import { TelegramConnectModal } from '@/components/TelegramConnectModal';
-import { DailySummary, TaskStatus } from '@/types';
+import { DailySummary, TaskStatus, User } from '@/types';
 import { Sparkles } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 export default function Home() {
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [summary, setSummary] = useState<DailySummary>({
     date: new Date().toISOString().split('T')[0],
     total_scheduled: 0,
@@ -23,11 +25,34 @@ export default function Home() {
   const [isTelegramOpen, setIsTelegramOpen] = useState(false);
   const [isTelegramConnected, setIsTelegramConnected] = useState(false);
 
-  // Load daily summary
-  const loadDailySummary = async () => {
+  const supabase = createClient();
+
+  // Load active user details
+  const loadUser = useCallback(async (email?: string) => {
+    try {
+      const url = email ? `/api/v1/user?email=${encodeURIComponent(email)}` : '/api/v1/user';
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.user);
+        setIsTelegramConnected(!!data.user?.telegram_chat_id);
+        return data.user;
+      }
+    } catch (err) {
+      console.error('Failed to load user:', err);
+    }
+    return null;
+  }, []);
+
+  // Load daily summary for user
+  const loadDailySummary = useCallback(async (userId?: string) => {
     try {
       const today = new Date().toISOString().split('T')[0];
-      const res = await fetch(`/api/v1/dashboard/daily-summary?date=${today}`);
+      const targetUserId = userId || currentUser?.id;
+      const url = targetUserId
+        ? `/api/v1/dashboard/daily-summary?date=${today}&userId=${targetUserId}`
+        : `/api/v1/dashboard/daily-summary?date=${today}`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setSummary(data);
@@ -35,11 +60,53 @@ export default function Home() {
     } catch (err) {
       console.error('Failed to load summary:', err);
     }
-  };
+  }, [currentUser?.id]);
 
+  // Initial mount
   useEffect(() => {
-    loadDailySummary();
-  }, []);
+    loadUser().then((u) => {
+      if (u) loadDailySummary(u.id);
+      else loadDailySummary();
+    });
+
+    // Listen to Supabase Auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user?.email) {
+        // Sync with backend active user
+        await fetch('/api/v1/user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: session.user.email }),
+        });
+        loadUser(session.user.email).then((u) => {
+          if (u) loadDailySummary(u.id);
+        });
+      }
+    });
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [loadUser, loadDailySummary, supabase.auth]);
+
+  // Handle switching user from modal
+  const handleUserChange = async (email: string) => {
+    try {
+      const res = await fetch('/api/v1/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUser(data.user);
+        setIsTelegramConnected(!!data.user.telegram_chat_id);
+        loadDailySummary(data.user.id);
+      }
+    } catch (e) {
+      console.error('Failed to switch user:', e);
+    }
+  };
 
   const handleToggleTask = async (
     taskId: string,
@@ -91,6 +158,8 @@ export default function Home() {
         onOpenScan={() => setIsScanOpen(true)}
         onOpenTelegram={() => setIsTelegramOpen(true)}
         isTelegramConnected={isTelegramConnected}
+        currentUser={currentUser}
+        onUserChange={handleUserChange}
       />
 
       {/* Main Container */}
@@ -99,10 +168,10 @@ export default function Home() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              Good day, Alex 👋
+              Good day, {currentUser?.name || 'Friend'} 👋
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Keep your medication schedule on track effortlessly.
+              Logged in as <span className="font-semibold text-slate-700">{currentUser?.email || 'saiphaneendra09@gmail.com'}</span>
             </p>
           </div>
 
@@ -138,7 +207,7 @@ export default function Home() {
       <BillScanModal
         isOpen={isScanOpen}
         onClose={() => setIsScanOpen(false)}
-        onScheduleCreated={loadDailySummary}
+        onScheduleCreated={() => loadDailySummary()}
       />
 
       <TelegramConnectModal
@@ -146,6 +215,7 @@ export default function Home() {
         onClose={() => setIsTelegramOpen(false)}
         isConnected={isTelegramConnected}
         onConnectedStatusChange={setIsTelegramConnected}
+        userEmail={currentUser?.email}
       />
     </div>
   );
