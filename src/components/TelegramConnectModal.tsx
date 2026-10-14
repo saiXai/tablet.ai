@@ -33,9 +33,11 @@ export const TelegramConnectModal: React.FC<TelegramConnectModalProps> = ({
         .then((data) => {
           setToken(data.token);
           setDeepLink(data.deepLink);
-          if (data.deepLink) {
+          if (data.bot_username && data.bot_username !== 'TabletAiReminderBot') {
+            setBotUsername(data.bot_username);
+          } else if (data.deepLink) {
             const match = data.deepLink.match(/t\.me\/([^?]+)/);
-            if (match && match[1]) setBotUsername(match[1]);
+            if (match && match[1] && match[1] !== 'TabletAiReminderBot') setBotUsername(match[1]);
           }
           if (data.connected) onConnectedStatusChange(true);
         })

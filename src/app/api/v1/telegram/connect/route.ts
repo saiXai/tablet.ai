@@ -22,7 +22,9 @@ export async function POST(req: NextRequest) {
 
     await db.updateUserTelegram(user.id, null, token);
 
-    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'TabletAiReminderBot';
+    const botUsername = process.env.TELEGRAM_BOT_USERNAME && process.env.TELEGRAM_BOT_USERNAME !== 'TabletAiReminderBot'
+      ? process.env.TELEGRAM_BOT_USERNAME 
+      : 'sai_tablet_ai_bot';
     const deepLink = `https://t.me/${botUsername}?start=${token}`;
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -49,6 +51,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       token,
       deepLink,
+      bot_username: botUsername,
       connected: !!user.telegram_chat_id,
       chat_id: user.telegram_chat_id || null,
       user_email: user.email,
