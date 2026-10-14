@@ -7,8 +7,9 @@ import { AdherenceAgenda } from '@/components/AdherenceAgenda';
 import { BillScanModal } from '@/components/BillScanModal';
 import { TelegramConnectModal } from '@/components/TelegramConnectModal';
 import { DailySummary, TaskStatus, User } from '@/types';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, LogIn } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { AuthModal } from '@/components/AuthModal';
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -24,6 +25,7 @@ export default function Home() {
   const [isScanOpen, setIsScanOpen] = useState(false);
   const [isTelegramOpen, setIsTelegramOpen] = useState(false);
   const [isTelegramConnected, setIsTelegramConnected] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   const supabase = createClient();
 
@@ -81,6 +83,9 @@ export default function Home() {
         loadUser(session.user.email).then((u) => {
           if (u) loadDailySummary(u.id);
         });
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+        setIsTelegramConnected(false);
       }
     });
 
@@ -105,6 +110,31 @@ export default function Home() {
       }
     } catch (e) {
       console.error('Failed to switch user:', e);
+    }
+  };
+
+  // Handle Logout
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      await fetch('/api/v1/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logout: true }),
+      });
+      setCurrentUser(null);
+      setIsTelegramConnected(false);
+      setSummary({
+        date: new Date().toISOString().split('T')[0],
+        total_scheduled: 0,
+        completed_count: 0,
+        completion_rate: 0,
+        current_streak_days: 0,
+        tasks: [],
+      });
+      setIsAuthOpen(true);
+    } catch (e) {
+      console.error('Logout error:', e);
     }
   };
 
@@ -160,6 +190,7 @@ export default function Home() {
         isTelegramConnected={isTelegramConnected}
         currentUser={currentUser}
         onUserChange={handleUserChange}
+        onLogout={handleLogout}
       />
 
       {/* Main Container */}
@@ -168,21 +199,35 @@ export default function Home() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-              Good day, {currentUser?.name || 'Friend'} 👋
+              {currentUser ? `Good day, ${currentUser.name} 👋` : 'Welcome to tablet.ai 👋'}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Logged in as <span className="font-semibold text-slate-700">{currentUser?.email || 'saiphaneendra09@gmail.com'}</span>
+              {currentUser ? (
+                <>Logged in as <span className="font-semibold text-slate-700">{currentUser.email}</span></>
+              ) : (
+                <>Not signed in. Connect via Google, Email, or select a seed profile to track doses.</>
+              )}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsScanOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all shadow-emerald-200 active:scale-95"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Scan Bill / Receipt</span>
-            </button>
+            {!currentUser ? (
+              <button
+                onClick={() => setIsAuthOpen(true)}
+                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all active:scale-95"
+              >
+                <LogIn className="w-4 h-4" />
+                <span>Sign In / Test OAuth</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsScanOpen(true)}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all shadow-emerald-200 active:scale-95"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Scan Bill / Receipt</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -216,6 +261,14 @@ export default function Home() {
         isConnected={isTelegramConnected}
         onConnectedStatusChange={setIsTelegramConnected}
         userEmail={currentUser?.email}
+      />
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        onUserSelected={handleUserChange}
       />
     </div>
   );

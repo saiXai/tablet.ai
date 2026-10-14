@@ -33,8 +33,12 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, id } = body;
 
+    if (body.logout) {
+      return NextResponse.json({ success: true, user: null });
+    }
+
+    const { email, id } = body;
     const user = await db.setActiveUser(email || id);
     return NextResponse.json({ success: true, user });
   } catch (err: unknown) {
