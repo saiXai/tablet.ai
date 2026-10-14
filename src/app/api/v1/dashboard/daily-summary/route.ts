@@ -9,10 +9,21 @@ export async function GET(req: NextRequest) {
     const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
     const requestedUserId = searchParams.get('userId');
 
-    let userId = requestedUserId;
+    let userId: string | null = requestedUserId;
     if (!userId) {
       const activeUser = await db.getUser();
-      userId = activeUser.id;
+      userId = activeUser ? activeUser.id : null;
+    }
+
+    if (!userId) {
+      return NextResponse.json({
+        date,
+        total_scheduled: 0,
+        completed_count: 0,
+        completion_rate: 0,
+        current_streak_days: 0,
+        tasks: [],
+      });
     }
 
     const summary = await db.getDailySummary(userId, date);

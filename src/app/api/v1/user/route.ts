@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     const email = searchParams.get('email');
     const userId = searchParams.get('id');
 
-    let user;
+    let user = null;
     if (email) {
       user = await db.getUserByEmail(email);
     } else if (userId) {
@@ -16,11 +16,7 @@ export async function GET(req: NextRequest) {
       user = await db.getUser();
     }
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ user });
+    return NextResponse.json({ user: user || null });
   } catch (err: unknown) {
     console.error('User fetch error:', err);
     return NextResponse.json(
@@ -35,6 +31,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     if (body.logout) {
+      await db.setActiveUser(null);
       return NextResponse.json({ success: true, user: null });
     }
 

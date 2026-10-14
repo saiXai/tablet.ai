@@ -52,7 +52,7 @@ const SEED_USER_2: User = {
 
 const memoryStore = {
   users: [SEED_USER_1, SEED_USER_2] as User[],
-  activeUserId: SEED_USER_1.id,
+  activeUserId: null as string | null,
   schedules: [] as MedicationSchedule[],
   tasks: [] as AdherenceTask[],
 };
@@ -175,8 +175,9 @@ function ensureSeedData() {
 ensureSeedData();
 
 export const db = {
-  async getUser(id?: string): Promise<User> {
+  async getUser(id?: string): Promise<User | null> {
     const targetId = id || memoryStore.activeUserId;
+    if (!targetId) return null;
     if (pool) {
       try {
         const res = await pool.query('SELECT * FROM users WHERE id = $1', [targetId]);
@@ -186,7 +187,7 @@ export const db = {
       }
     }
     const found = memoryStore.users.find((u) => u.id === targetId);
-    return found || memoryStore.users[0];
+    return found || null;
   },
 
   async getUserByEmail(email: string): Promise<User | null> {
@@ -225,12 +226,18 @@ export const db = {
     return memoryStore.users.find((u) => u.telegram_chat_id === chatId) || null;
   },
 
-  async setActiveUser(idOrEmail: string): Promise<User> {
+  async setActiveUser(idOrEmail?: string | null): Promise<User | null> {
+    if (!idOrEmail) {
+      memoryStore.activeUserId = null;
+      return null;
+    }
     const user = (await this.getUserByEmail(idOrEmail)) || (await this.getUser(idOrEmail));
     if (user) {
       memoryStore.activeUserId = user.id;
+    } else {
+      memoryStore.activeUserId = null;
     }
-    return user || memoryStore.users[0];
+    return user || null;
   },
 
   async listUsers(): Promise<User[]> {

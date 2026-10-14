@@ -12,6 +12,12 @@ export async function POST(req: NextRequest) {
     }
 
     const user = await db.getUser(userId);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Please sign in to connect Telegram.' },
+        { status: 401 }
+      );
+    }
     const token = `tk_${Math.random().toString(36).substring(2, 12)}`;
 
     await db.updateUserTelegram(user.id, null, token);

@@ -64,12 +64,19 @@ export default function Home() {
     }
   }, [currentUser?.id]);
 
-  // Initial mount
+  // Initial mount: only load if real Supabase session exists
   useEffect(() => {
-    loadUser().then((u) => {
-      if (u) loadDailySummary(u.id);
-      else loadDailySummary();
-    });
+    const initSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.email) {
+        const u = await loadUser(session.user.email);
+        if (u) loadDailySummary(u.id);
+      } else {
+        setCurrentUser(null);
+        setIsTelegramConnected(false);
+      }
+    };
+    initSession();
 
     // Listen to Supabase Auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -93,25 +100,6 @@ export default function Home() {
       subscription?.unsubscribe();
     };
   }, [loadUser, loadDailySummary, supabase.auth]);
-
-  // Handle switching user from modal
-  const handleUserChange = async (email: string) => {
-    try {
-      const res = await fetch('/api/v1/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setCurrentUser(data.user);
-        setIsTelegramConnected(!!data.user.telegram_chat_id);
-        loadDailySummary(data.user.id);
-      }
-    } catch (e) {
-      console.error('Failed to switch user:', e);
-    }
-  };
 
   // Handle Logout
   const handleLogout = async () => {
@@ -189,7 +177,6 @@ export default function Home() {
         onOpenTelegram={() => setIsTelegramOpen(true)}
         isTelegramConnected={isTelegramConnected}
         currentUser={currentUser}
-        onUserChange={handleUserChange}
         onLogout={handleLogout}
       />
 
@@ -205,7 +192,7 @@ export default function Home() {
               {currentUser ? (
                 <>Logged in as <span className="font-semibold text-slate-700">{currentUser.email}</span></>
               ) : (
-                <>Not signed in. Connect via Google, Email, or select a seed profile to track doses.</>
+                <>Not signed in. Connect via Google, Apple, or Email to track your medication schedule.</>
               )}
             </p>
           </div>
@@ -268,7 +255,6 @@ export default function Home() {
         onClose={() => setIsAuthOpen(false)}
         currentUser={currentUser}
         onLogout={handleLogout}
-        onUserSelected={handleUserChange}
       />
     </div>
   );

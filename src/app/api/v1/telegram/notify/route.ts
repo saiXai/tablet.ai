@@ -68,9 +68,9 @@ export async function POST(req: NextRequest) {
     if (specificTaskId) {
       // Send reminder for specific task
       const user = await db.getUser();
-      if (!user.telegram_chat_id) {
+      if (!user || !user.telegram_chat_id) {
         return NextResponse.json(
-          { error: 'User does not have a connected Telegram chat' },
+          { error: 'User is not signed in or does not have a connected Telegram chat' },
           { status: 400 }
         );
       }

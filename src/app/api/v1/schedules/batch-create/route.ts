@@ -13,8 +13,13 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
     const user = await db.getUser(user_id);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User is not authenticated or not found' },
+        { status: 401 }
+      );
+    }
     const startDate = start_date || new Date().toISOString().split('T')[0];
 
     let schedulesCreatedCount = 0;

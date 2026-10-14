@@ -2,13 +2,12 @@
 
 import React, { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Mail, Sparkles, CheckCircle2, AlertCircle, Loader2, LogOut, User as UserIcon } from 'lucide-react';
+import { X, Mail, CheckCircle2, AlertCircle, Loader2, LogOut, User as UserIcon } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUserSelected?: (email: string) => void;
   currentUser?: { name: string; email: string } | null;
   onLogout?: () => void;
 }
@@ -16,7 +15,6 @@ interface AuthModalProps {
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
-  onUserSelected,
   currentUser,
   onLogout,
 }) => {
@@ -82,19 +80,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
   };
 
-  const handleSelectSeedUser = async (targetEmail: string) => {
-    if (onUserSelected) {
-      onUserSelected(targetEmail);
-    }
-    setMessage({
-      type: 'success',
-      text: `Switched active profile to ${targetEmail}`,
-    });
-    setTimeout(() => {
-      onClose();
-    }, 700);
-  };
-
   const handleSignOut = async () => {
     try {
       setLoadingProvider('logout');
@@ -103,7 +88,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onLogout();
       }
       setMessage({ type: 'success', text: 'Logged out successfully.' });
-    } catch (e: unknown) {
+    } catch {
       setMessage({ type: 'error', text: 'Error signing out' });
     } finally {
       setLoadingProvider(null);
@@ -118,11 +103,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <div>
-              <Dialog.Title className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <span>Account & Authentication</span>
+              <Dialog.Title className="text-lg font-bold text-slate-900">
+                {currentUser ? 'Your Account' : 'Sign in to tablet.ai'}
               </Dialog.Title>
               <p className="text-xs text-slate-500 mt-0.5">
-                OAuth 2.0, Supabase Auth & profile management
+                {currentUser ? 'Manage your active session' : 'Choose a sign-in method to continue'}
               </p>
             </div>
             <button
@@ -151,87 +136,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          {/* Active Session & Logout Card */}
+          {/* Active Session & Logout Card (Only shown if genuinely logged in) */}
           {currentUser && (
-            <div className="mt-4 p-3.5 bg-emerald-50/60 border border-emerald-200/80 rounded-xl flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center font-bold text-xs">
-                  {currentUser.name ? currentUser.name.charAt(0) : <UserIcon className="w-4 h-4" />}
+            <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-sm">
+                  {currentUser.name ? currentUser.name.charAt(0) : <UserIcon className="w-5 h-5" />}
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-slate-900">{currentUser.name}</p>
-                  <p className="text-[11px] text-slate-600 font-mono">{currentUser.email}</p>
+                  <p className="text-sm font-bold text-slate-900">{currentUser.name}</p>
+                  <p className="text-xs text-slate-500">{currentUser.email}</p>
                 </div>
               </div>
+
               <button
                 type="button"
                 onClick={handleSignOut}
                 disabled={loadingProvider === 'logout'}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-700 bg-white border border-rose-200 hover:bg-rose-50 shadow-sm transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold text-rose-700 bg-white hover:bg-rose-50 border border-rose-200 shadow-xs transition-colors"
               >
                 {loadingProvider === 'logout' ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <LogOut className="w-3.5 h-3.5" />
+                  <LogOut className="w-4 h-4" />
                 )}
                 <span>Log Out</span>
               </button>
             </div>
           )}
-
-          {/* Quick Seed Users Switcher */}
-          <div className="mt-4 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-500" />
-                Quick Seed Switcher
-              </span>
-              <span className="text-[10px] text-slate-600 font-medium bg-white px-2 py-0.5 rounded border border-slate-200">
-                1-Click Switch
-              </span>
-            </div>
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => handleSelectSeedUser('saiphaneendra09@gmail.com')}
-                className={`w-full text-left p-2.5 rounded-lg border text-xs transition-all flex items-center justify-between ${
-                  currentUser?.email === 'saiphaneendra09@gmail.com'
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-medium'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
-                }`}
-              >
-                <div>
-                  <p className="font-semibold text-slate-900">Sai Phaneendra</p>
-                  <p className="text-[11px] text-slate-500">saiphaneendra09@gmail.com</p>
-                </div>
-                {currentUser?.email === 'saiphaneendra09@gmail.com' && (
-                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                    Active
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelectSeedUser('saiphanimba09@gmail.com')}
-                className={`w-full text-left p-2.5 rounded-lg border text-xs transition-all flex items-center justify-between ${
-                  currentUser?.email === 'saiphanimba09@gmail.com'
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-medium'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
-                }`}
-              >
-                <div>
-                  <p className="font-semibold text-slate-900">Sai Phanimba</p>
-                  <p className="text-[11px] text-slate-500">saiphanimba09@gmail.com</p>
-                </div>
-                {currentUser?.email === 'saiphanimba09@gmail.com' && (
-                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                    Active
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
 
           {/* Social OAuth 2.0 Section */}
           <div className="mt-5 space-y-2.5">
